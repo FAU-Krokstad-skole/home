@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiosk Kalkulator</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 1rem;
+      background: #f9f9f9;
+      margin: 0;
+    }
+    .header {
+      text-align: center;
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+    .items {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .item, .pay-button, .numpad button {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .item .minus {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: #ffdddd;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 1rem;
+    }
+    .item .main-button, .pay-button button {
+      background: none;
+      border: none;
+      width: 100%;
+    }
+    .pay-button {
+        width: 150px;
+        height: 40px;
+    }
+
+    .pay-button button {
+        font-size: 1.5rem;
+    }
+    .item .main-button:active, .pay-button button:active, .numpad button:active {
+      background: #f0f0f0;
+    }
+    .pay-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin: 1rem 0 2rem 0;
+    }
+    #payment-section {
+      display: none;
+      position: fixed;
+      top: 6rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80vw;
+      max-width: 400px;
+      background: white;
+      border: 2px solid #333;
+      border-radius: 10px;
+      padding: 2rem;
+      z-index: 1000;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
+    #amountReceived {
+      font-size: 2rem;
+      text-align: center;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .numpad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .numpad button {
+      font-size: 1.5rem;
+      padding: 1rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .change {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 1rem;
+      font-weight: bold;
+    }
+    .close-payment {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 1.2rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">Sum: <span id="total">0</span> kr</div>
+  <div class="items" id="items"></div>
+  <div class="pay-buttons">
+    <div class="pay-button"><button onclick="startPayment()">💵 Kontant</button></div>
+    <div class="pay-button"><button onclick="resetSale()">🗑️ Tøm</button></div>
+  </div>
+
+  <div id="payment-section">
+    <button class="close-payment" onclick="closePayment()">✖</button>
+    <div class="change" id="change">Tilbake: 0 kr</div>
+    <h2>Tast inn beløp mottatt:</h2>
+    <div><input id="amountReceived" type="text" readonly></div>
+    <div class="numpad">
+      <button onclick="addDigit('1')">1</button>
+      <button onclick="addDigit('2')">2</button>
+      <button onclick="addDigit('3')">3</button>
+      <button onclick="addDigit('4')">4</button>
+      <button onclick="addDigit('5')">5</button>
+      <button onclick="addDigit('6')">6</button>
+      <button onclick="addDigit('7')">7</button>
+      <button onclick="addDigit('8')">8</button>
+      <button onclick="addDigit('9')">9</button>
+      <button onclick="clearDigit()">C</button>
+      <button onclick="addDigit('0')">0</button>
+      <button onclick="backspaceDigit()">⌫</button>
+    </div>
+  </div>
+
+  <script>
+    const items = [
+      { name: "Pølse", icon: "🌭", price: 30 },
+      { name: "Kroneis", icon: "🍦", price: 30 },
+      { name: "Småis", icon: "🍡", price: 20 },
+      { name: "Kake", icon: "🍰", price: 30 },
+      { name: "Brus", icon: "🍾", price: 40 },
+      { name: "Kaffe", icon: "☕", price: 20 },
+    ];
+
+    let cart = {};
+
+    function renderItems() {
+      const container = document.getElementById("items");
+      container.innerHTML = "";
+      items.forEach(item => {
+        const count = cart[item.name] || 0;
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <button class="main-button" onclick="increase('${item.name}')">
+            <div style="font-size: 2rem">${item.icon}</div>
+            <div>${item.name}</div>
+            <div><big><strong>${item.price} kr</strong></big></div>
+            <div><big><strong>${count} stk</strong></big></div>
+          </button>
+          <button class="minus" onclick="decrease('${item.name}')">−</button>
+        `;
+        container.appendChild(div);
+      });
+      updateTotal();
+    }
+
+    function increase(itemName) {
+      cart[itemName] = (cart[itemName] || 0) + 1;
+      renderItems();
+    }
+
+    function decrease(itemName) {
+      if (cart[itemName]) {
+        cart[itemName]--;
+        if (cart[itemName] === 0) delete cart[itemName];
+        renderItems();
+      }
+    }
+
+    function updateTotal() {
+      const total = Object.entries(cart).reduce((sum, [name, count]) => {
+        const item = items.find(i => i.name === name);
+        return sum + (item.price * count);
+      }, 0);
+      document.getElementById("total").textContent = total;
+      updateChange();
+    }
+
+    function startPayment() {
+      document.getElementById("payment-section").style.display = "block";
+      document.getElementById("change").textContent = "Tilbake: 0 kr";
+      document.getElementById("amountReceived").value = "";
+    }
+
+    function closePayment() {
+      document.getElementById("payment-section").style.display = "none";
+    }
+
+    function addDigit(digit) {
+      const input = document.getElementById("amountReceived");
+      input.value += digit;
+      updateChange();
+    }
+
+    function backspaceDigit() {
+      const input = document.getElementById("amountReceived");
+      input.value = input.value.slice(0, -1);
+      updateChange();
+    }
+
+    function clearDigit() {
+      document.getElementById("amountReceived").value = "";
+      updateChange();
+    }
+
+    function updateChange() {
+      const received = parseInt(document.getElementById("amountReceived").value);
+      const total = parseInt(document.getElementById("total").textContent);
+      if (isNaN(received)) {
+        document.getElementById("change").textContent = "Tilbake: 0 kr";
+        return;
+      }
+      const change = received - total;
+      document.getElementById("change").textContent = `Tilbake: ${change} kr`;
+    }
+
+    function resetSale() {
+      cart = {};
+      renderItems();
+      closePayment();
+    }
+
+    renderItems();
+  </script>
+</body>
+</html>
